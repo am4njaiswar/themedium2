@@ -19,7 +19,7 @@ export default function EmailInbox({ onSelectEmail }: EmailInboxProps) {
   const [selectedId, setSelectedId] = useState<number | null>(1);
 
   return (
-    <div className="w-full max-w-4xl h-[60vh] bg-[#C0C0C0] p-1 flex flex-col font-sans text-sm shadow-2xl">
+    <div className="w-full max-w-4xl h-[60vh] bg-[#C0C0C0] p-1 flex flex-col font-sans text-sm shadow-2xl border-t-2 border-l-2 border-white border-b-2 border-r-2 ">
       
       {/* 🪟 Window Header */}
       <div className="bg-[#000080] text-white px-2 py-1 font-bold flex justify-between items-center mb-1 select-none">
@@ -28,7 +28,6 @@ export default function EmailInbox({ onSelectEmail }: EmailInboxProps) {
           <span>Inbox - Outlook Express</span>
         </div>
         <div className="flex gap-0.5">
-           {/* Minimize/Maximize/Close Buttons */}
            <WinBtn>_</WinBtn>
            <WinBtn>□</WinBtn>
            <WinBtn>X</WinBtn>
@@ -36,7 +35,7 @@ export default function EmailInbox({ onSelectEmail }: EmailInboxProps) {
       </div>
 
       {/* 📋 Toolbar */}
-      <div className="flex gap-4 p-2 border-b-2 border-gray-400 mb-1">
+      <div className="flex gap-4 p-2 border-b border-gray-400 mb-1 bg-[#C0C0C0]">
         <ToolBtn icon={<Mail size={16} />} label="New Mail" />
         <ToolBtn icon={<Reply size={16} />} label="Reply" />
         <ToolBtn icon={<Trash2 size={16} />} label="Delete" />
@@ -44,12 +43,12 @@ export default function EmailInbox({ onSelectEmail }: EmailInboxProps) {
         <ToolBtn icon={<Printer size={16} />} label="Print" />
       </div>
 
-      {/* 📧 The Email List (The "Spreadsheet" Look) */}
-      <div className="flex-1 bg-white border-inset border-2 border-gray-600 overflow-y-auto cursor-default">
+      {/* 📧 The Email List */}
+      <div className="flex-1 bg-white border-2 border-gray-600 border-inset overflow-y-auto cursor-default">
         <table className="w-full border-collapse">
           <thead>
             <tr className="bg-[#C0C0C0] text-black border-b border-gray-400 text-left">
-              <th className="px-2 py-1 w-8 border-r border-gray-400">Wait</th>
+              <th className="px-2 py-1 w-8 border-r border-gray-400">!</th>
               <th className="px-2 py-1 w-1/4 border-r border-gray-400">From</th>
               <th className="px-2 py-1 w-1/2 border-r border-gray-400">Subject</th>
               <th className="px-2 py-1">Received</th>
@@ -64,12 +63,11 @@ export default function EmailInbox({ onSelectEmail }: EmailInboxProps) {
                   if(onSelectEmail) onSelectEmail(email.id);
                 }}
                 className={`
-                  ${selectedId === email.id ? 'bg-[#000080] text-white outline-dotted outline-1 outline-white' : 'text-black hover:bg-gray-100'}
+                  ${selectedId === email.id ? 'bg-[#000080] text-white' : 'text-black hover:bg-gray-100'}
                 `}
               >
                 <td className="px-2 py-0.5 border-r border-dotted border-gray-300">
-                  {/* Closed envelope icon */}
-                  {!email.read ? <Mail size={12} fill="currentColor" /> : <div className="w-3" />}
+                  {!email.read && <Mail size={12} fill="currentColor" />}
                 </td>
                 <td className="px-2 py-0.5 border-r border-dotted border-gray-300 truncate">
                   {email.from}
@@ -85,7 +83,7 @@ export default function EmailInbox({ onSelectEmail }: EmailInboxProps) {
       </div>
 
       {/* Status Bar */}
-      <div className="mt-1 border-inset border border-gray-400 px-2 py-0.5 text-xs text-gray-600 flex justify-between">
+      <div className="mt-1 border border-gray-400 border-inset px-2 py-0.5 text-xs text-gray-600 flex justify-between bg-[#C0C0C0]">
         <span>4 message(s), 1 unread</span>
         <span>Online</span>
       </div>
@@ -93,16 +91,15 @@ export default function EmailInbox({ onSelectEmail }: EmailInboxProps) {
   );
 }
 
-// 🧱 Helper Component: Classic Windows 95 Button
+// 🧱 Helper Components
 function WinBtn({ children }: { children: React.ReactNode }) {
   return (
-    <button className="w-4 h-4 bg-[#C0C0C0] border-t border-l border-white border-b border-r  shadow-sm flex items-center justify-center text-[10px] font-bold active:border-t-black active:border-l-black active:border-b-white active:border-r-white">
+    <button className="w-4 h-4 bg-[#C0C0C0] border-t border-l border-white border-b border-r  flex items-center justify-center text-[10px] font-bold active:border-t-black active:border-l-black active:border-b-white active:border-r-white">
       {children}
     </button>
   );
 }
 
-// 🧱 Helper Component: Toolbar Button
 function ToolBtn({ icon, label }: { icon: React.ReactNode, label: string }) {
   return (
     <button className="flex flex-col items-center gap-0.5 px-2 hover:bg-gray-300 active:translate-y-px">
