@@ -2,6 +2,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Link from 'next/link'
 import EraContainer from './components/core2/EraContainer'
 import NetworkStatus from './components/core2/NetworkStatus'
 import TelegraphUI from './components/eras2/1840_Telegraph/TelegraphUI'
@@ -80,11 +81,30 @@ export default function Home() {
   return (
     <div className="min-h-screen p-4 md:p-8">
       {/* Header */}
-      <header className="text-center mb-8">
-        <h1 className="text-4xl md:text-5xl font-bold bg-linear-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent mb-2">
-          Communication Evolution Simulator
-        </h1>
-        <p className="text-gray-300">Experience how messaging evolved through history</p>
+      <header className="text-center mb-8 relative">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
+          <div className="flex-1">
+            <h1 className="text-4xl md:text-5xl font-bold bg-linear-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent mb-2">
+              Communication Evolution Simulator
+            </h1>
+            <p className="text-gray-300">Experience how messaging evolved through history</p>
+          </div>
+          <Link 
+            href="/demo"
+            className="group inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-linear-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-medium transition-all duration-300 hover:shadow-lg hover:shadow-blue-500/25 active:scale-95"
+          >
+            <span className="text-lg">🚀</span>
+            <span>Live Demo</span>
+            <svg 
+              className="w-4 h-4 group-hover:translate-x-1 transition-transform" 
+              fill="none" 
+              stroke="currentColor" 
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+            </svg>
+          </Link>
+        </div>
       </header>
 
       {/* Main Content Grid */}
