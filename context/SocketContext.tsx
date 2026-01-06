@@ -1,4 +1,3 @@
-// src/context/SocketContext.tsx
 'use client';
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
@@ -22,14 +21,18 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
   const [isConnected, setIsConnected] = useState(false);
 
   useEffect(() => {
-    // 🔌 Connect ONLY once
-    const socketInstance = io('http://localhost:3001', {
+    const SOCKET_URL = process.env.NODE_ENV === 'production' 
+      ? 'https://themedium2-3.onrender.com' 
+      : 'http://localhost:3001';
+
+    // 🔌 STEP 2: Connect using that dynamic URL
+    const socketInstance = io(SOCKET_URL, {
       transports: ['websocket'],
       reconnectionAttempts: 5,
     });
 
     socketInstance.on('connect', () => {
-      console.log("✅ Socket Connected:", socketInstance.id);
+      console.log("✅ Socket Connected to:", SOCKET_URL, "| ID:", socketInstance.id);
       setIsConnected(true);
     });
 
