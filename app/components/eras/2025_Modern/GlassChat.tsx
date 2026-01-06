@@ -40,7 +40,7 @@ export default function GlassChat() {
         ...prev, 
         { 
           id: Date.now(), 
-          text: data.content, 
+          text: data.text || data.content || "Cipher Error",
           sender: 'other',
           era: data.era // "1840", "1990", etc.
         }
