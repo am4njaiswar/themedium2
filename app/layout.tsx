@@ -1,32 +1,26 @@
-import type { Metadata } from "next";
-import { Inter, Roboto_Mono, Special_Elite } from "next/font/google"; 
-import "./globals.css";
-import { SocketProvider } from "@/context/SocketContext";
+// app/layout.tsx
+import type { Metadata } from 'next'
+import { Inter } from 'next/font/google'
+import './globals.css'
+import { SocketProvider } from '@/context/SocketContext'
 
-const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
-const robotoMono = Roboto_Mono({ subsets: ["latin"], variable: "--font-roboto-mono" });
-const specialElite = Special_Elite({ weight: "400", subsets: ["latin"], variable: "--font-special-elite" });
+const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: "PULSE | Communication Evolution",
-  description: "A time-traveling journey through the history of messaging.",
-};
+  title: 'Communication Evolution Simulator',
+  description: 'Experience messaging through different eras of communication technology',
+}
 
 export default function RootLayout({
   children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+}: {
+  children: React.ReactNode
+}) {
   return (
     <html lang="en">
-      <body className={`
-        ${inter.variable} ${robotoMono.variable} ${specialElite.variable} 
-        bg-black antialiased overflow-hidden
-      `}>
-        <SocketProvider>
-        {children}
-        </SocketProvider>
+      <body className={`${inter.className} bg-linear-to-br from-gray-900 to-blue-950 min-h-screen`}>
+        <SocketProvider>{children}</SocketProvider>
       </body>
     </html>
-  );
+  )
 }
