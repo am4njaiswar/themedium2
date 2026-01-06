@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Mic, ImagePlus } from 'lucide-react';
+import { Send, Mic, ImagePlus, MicOff, AlertCircle } from 'lucide-react';
 import { useSocket } from '@/context/SocketContext';
 import AiPredictor from './AiPredictor';
 import EncryptionLock from './EncryptionLock';
@@ -12,79 +12,172 @@ interface Message {
   text: string;
   sender: 'me' | 'other' | 'system';
   era?: string; 
-  displaySender?: string; // To show "Modern User" without the ID junk
+  displaySender?: string; 
 }
 
 export default function GlassChat() {
   const { socket, isConnected } = useSocket();
   const [input, setInput] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  
+  // 🎤 VOICE STATE
+  const [isListening, setIsListening] = useState(false);
+  const [voiceStatus, setVoiceStatus] = useState<string>(""); 
+  
+  const recognitionRef = useRef<any>(null);
+  
+  // 🧠 MEMORY REFS (Crucial for not losing text)
+  const baseInputRef = useRef<string>(""); 
+  const interimRef = useRef<string>(""); 
 
   const [messages, setMessages] = useState<Message[]>([
     { id: 'sys-1', text: "Chronos Link v4.0 Online.", sender: 'system' },
   ]);
 
-  // 1. 👂 LISTEN (Handle everything here)
+  // 1. 🎤 INITIALIZE SPEECH ENGINE
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      
+      if (SpeechRecognition) {
+        recognitionRef.current = new SpeechRecognition();
+        recognitionRef.current.continuous = true; 
+        recognitionRef.current.interimResults = true; // Real-time typing
+        recognitionRef.current.lang = 'en-US';
+
+        recognitionRef.current.onstart = () => {
+          setIsListening(true);
+          setVoiceStatus("LISTENING NOW..."); 
+        };
+
+        recognitionRef.current.onerror = (event: any) => {
+          console.warn("Voice Error:", event.error);
+          if (event.error === 'not-allowed') {
+            setIsListening(false);
+            setVoiceStatus("Permission Denied");
+          } else if (event.error === 'no-speech') {
+            return; 
+          }
+        };
+
+        recognitionRef.current.onend = () => {
+          setIsListening(false);
+          setVoiceStatus("");
+          
+          // 🛑 CRITICAL FIX: Save any "floating" words when mic stops
+          if (interimRef.current) {
+             const newText = baseInputRef.current + (baseInputRef.current ? " " : "") + interimRef.current;
+             setInput(newText);
+             baseInputRef.current = newText;
+             interimRef.current = ""; 
+          }
+        };
+
+        // 🧠 TEXT GENERATION LOGIC
+        recognitionRef.current.onresult = (event: any) => {
+          let interimTranscript = '';
+          let finalTranscript = '';
+
+          for (let i = event.resultIndex; i < event.results.length; ++i) {
+            if (event.results[i].isFinal) {
+              finalTranscript += event.results[i][0].transcript;
+            } else {
+              interimTranscript += event.results[i][0].transcript;
+            }
+          }
+
+          // 1. If sentence finished, commit it to Base Memory
+          if (finalTranscript) {
+             const newBase = baseInputRef.current + (baseInputRef.current ? " " : "") + finalTranscript;
+             baseInputRef.current = newBase;
+             setInput(newBase);
+             interimRef.current = ""; 
+          } 
+          // 2. If still speaking, just show it visually (don't save yet)
+          else if (interimTranscript) {
+             interimRef.current = interimTranscript; 
+             setInput(baseInputRef.current + (baseInputRef.current ? " " : "") + interimTranscript);
+          }
+        };
+      } else {
+        setVoiceStatus("Not Supported");
+      }
+    }
+  }, []);
+
+  // 2. 🎤 BUTTON HANDLERS (Push-to-Talk)
+  const startListening = (e: React.SyntheticEvent) => {
+    e.preventDefault();
+    if (!recognitionRef.current) return;
+
+    if (!isListening) {
+      baseInputRef.current = input; // Lock current text so we don't delete it
+      interimRef.current = ""; 
+      setVoiceStatus("Connecting..."); 
+      try {
+        recognitionRef.current.start();
+      } catch (err) {
+        // ignore
+      }
+    }
+  };
+
+  const stopListening = (e: React.SyntheticEvent) => {
+    e.preventDefault();
+    if (recognitionRef.current && isListening) {
+      recognitionRef.current.stop();
+      setVoiceStatus(""); 
+    }
+  };
+
+  // 3. SOCKET LOGIC
   useEffect(() => {
     if (!socket) return;
-
     const handleReceive = (data: any) => {
-      console.log("🔮 Received:", data);
-
-      // A. Parse the Sender Name (e.g., "Modern User::abc-123")
       let isMe = false;
       let cleanSenderName = data.sender;
-
-      // Check if this message came from a Modern User (2025)
       if (typeof data.sender === 'string' && data.sender.includes('::')) {
         const [name, senderSocketId] = data.sender.split('::');
-        cleanSenderName = name; // "Modern User"
-        
-        // If the ID inside the name matches MY socket ID, it's from me!
-        if (senderSocketId === socket.id) {
-          isMe = true;
-        }
+        cleanSenderName = name; 
+        if (senderSocketId === socket.id) isMe = true;
       }
-
       setMessages((prev) => [
         ...prev, 
         { 
           id: data.id || Date.now().toString(), 
           text: data.text || data.content || "Cipher Error",
-          sender: isMe ? 'me' : 'other', // Blue if me, Gray if them
+          sender: isMe ? 'me' : 'other', 
           era: data.era,
           displaySender: cleanSenderName
         }
       ]);
     };
-
     socket.on('receive_message', handleReceive);
     return () => { socket.off('receive_message', handleReceive); };
   }, [socket]);
 
-  // 2. Auto-Scroll
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // 3. 📤 SEND Function (Simplified)
   const sendMessage = () => {
     if(!input.trim()) return;
-
-    // 🛑 REMOVED LOCAL ADD (Optimistic UI)
-    // We do NOT add the message to 'setMessages' here. 
-    // We wait for the server to echo it back to handleReceive above.
+    
+    if (isListening && recognitionRef.current) {
+        recognitionRef.current.stop();
+        setVoiceStatus("");
+    }
     
     if (socket) {
       socket.emit('send_message', {
         era: '2025',
         content: input,
-        // 🔑 KEY FIX: Embed my ID in the sender name so we can check it on return
         sender: `Modern User::${socket.id}` 
       });
     }
-
     setInput("");
+    baseInputRef.current = ""; 
+    interimRef.current = "";
   };
 
   return (
@@ -110,13 +203,11 @@ export default function GlassChat() {
               className={`flex ${msg.sender === 'me' ? 'justify-end' : 'justify-start'}`}
             >
               <div className="flex flex-col max-w-[85%]">
-                {/* Show Era Tag if it's not me */}
                 {msg.sender === 'other' && msg.era && (
                   <span className="text-[10px] text-gray-400 ml-2 mb-1 uppercase tracking-wider">
                     {msg.era === '2025' ? 'Remote User' : `Incoming from ${msg.era}`}
                   </span>
                 )}
-                
                 <div className={`
                   px-5 py-3 rounded-2xl text-sm font-medium backdrop-blur-xl shadow-lg border border-white/5
                   ${msg.sender === 'me' 
@@ -134,15 +225,9 @@ export default function GlassChat() {
         </AnimatePresence>
       </div>
 
-      {!input && (
-         <div className="flex justify-center" onClick={() => setInput("Is anyone from the 1800s listening?")}>
-            <AiPredictor suggestion="Is anyone from the 1800s listening?" />
-         </div>
-      )}
-
       <div className="px-4 pb-6 pt-2 z-20">
         <div className="relative group">
-          <div className="absolute -inset-0.5 bg-linear-to-r from-blue-500 to-purple-600 rounded-full opacity-30 group-hover:opacity-60 blur transition duration-500" />
+          <div className="absolute -inset-0.5 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full opacity-30 group-hover:opacity-60 blur transition duration-500" />
           
           <div className="relative flex items-center bg-gray-900/90 backdrop-blur-2xl rounded-full border border-white/10 p-1.5 shadow-2xl">
             <button className="p-2 text-gray-400 hover:text-white transition-colors rounded-full hover:bg-white/5">
@@ -152,25 +237,48 @@ export default function GlassChat() {
             <input 
               type="text" 
               value={input}
-              onChange={(e) => setInput(e.target.value)}
+              onChange={(e) => {
+                 setInput(e.target.value);
+                 baseInputRef.current = e.target.value; 
+              }}
               onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
-              placeholder="Broadcast to timeline..."
-              className="flex-1 bg-transparent border-none outline-none text-white px-3 placeholder-gray-500 font-medium"
+              placeholder={voiceStatus || "Broadcast to timeline..."} 
+              className={`flex-1 bg-transparent border-none outline-none px-3 font-medium transition-colors
+                ${voiceStatus === 'Connecting...' ? 'text-blue-300' :
+                  voiceStatus.includes('LISTENING') ? 'text-green-400 font-bold animate-pulse' : 
+                  'text-white placeholder-gray-500'}`}
             />
             
-            <button className="p-2 text-gray-400 hover:text-white transition-colors rounded-full hover:bg-white/5">
-              <Mic size={20} />
+            {/* 🎤 HOLD-TO-TALK BUTTON */}
+            <button 
+              onMouseDown={startListening}
+              onMouseUp={stopListening}
+              onMouseLeave={stopListening} 
+              onTouchStart={startListening} 
+              onTouchEnd={stopListening} 
+              className={`p-2 transition-all rounded-full hover:bg-white/5 select-none ${
+                isListening 
+                  ? 'text-red-500 bg-red-500/10 scale-110 shadow-[0_0_15px_rgba(239,68,68,0.5)]' 
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              {isListening ? <MicOff size={20} className="animate-pulse" /> : <Mic size={20} />}
             </button>
             
             <motion.button 
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               onClick={sendMessage}
-              className="p-2.5 bg-linear-to-tr from-blue-600 to-blue-500 rounded-full text-white shadow-lg shadow-blue-600/30"
+              className="p-2.5 bg-gradient-to-tr from-blue-600 to-blue-500 rounded-full text-white shadow-lg shadow-blue-600/30 ml-1"
             >
               <Send size={18} fill="currentColor" strokeWidth={2.5} />
             </motion.button>
           </div>
+        </div>
+        
+        {/* Helper Text */}
+        <div className="text-center mt-2 text-[10px] font-mono tracking-wider text-blue-300/40">
+           {isListening ? "RELAYING AUDIO FEED..." : "HOLD MIC TO BROADCAST"}
         </div>
       </div>
     </div>
