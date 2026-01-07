@@ -1,11 +1,12 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
-import { Send, Mic, ImagePlus, MicOff } from "lucide-react";
+import { Send, Mic, ImagePlus, MicOff, ArrowLeft } from "lucide-react";
 import { useSocket } from "@/context/SocketContext";
 import EncryptionLock from "./EncryptionLock";
-import AiPredictor from "./AiPredictor"; // 👈 1. Import it
+import AiPredictor from "./AiPredictor";
 
 interface Message {
   id: string;
@@ -21,7 +22,7 @@ export default function GlassChat() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // 🤖 AI STATE
-  const [aiSuggestion, setAiSuggestion] = useState(""); // 👈 2. Store suggestion
+  const [aiSuggestion, setAiSuggestion] = useState("");
 
   // 🎤 VOICE STATE
   const [isListening, setIsListening] = useState(false);
@@ -35,8 +36,7 @@ export default function GlassChat() {
     { id: "sys-1", text: "Chronos Link v4.0 Online.", sender: "system" },
   ]);
 
-  // ... (Keep your existing Voice useEffect here unchanged) ...
-  // (I am omitting the long Voice useEffect to save space, keep it exactly as it was!)
+  // 1. 🎤 INITIALIZE SPEECH ENGINE
   useEffect(() => {
     if (typeof window !== "undefined") {
       const SpeechRecognition =
@@ -78,7 +78,7 @@ export default function GlassChat() {
     }
   }, []);
 
-  // 🎤 Button Handlers (Keep unchanged)
+  // 🎤 Button Handlers
   const startListening = (e: React.SyntheticEvent) => {
     e.preventDefault();
     if (recognitionRef.current && !isListening) {
@@ -102,7 +102,7 @@ export default function GlassChat() {
     return "Data received. Processing.";
   };
 
-  // 3. SOCKET LOGIC (Updated to trigger AI)
+  // 3. SOCKET LOGIC
   useEffect(() => {
     if (!socket) return;
     const handleReceive = (data: any) => {
@@ -124,7 +124,6 @@ export default function GlassChat() {
 
       setMessages((prev) => [...prev, newMsg]);
 
-      // 🤖 TRIGGER AI: If message is from someone else, suggest a reply
       if (!isMe) {
         const suggestion = generateAiReply(newMsg.text);
         setAiSuggestion(suggestion);
@@ -152,11 +151,10 @@ export default function GlassChat() {
       });
     }
     setInput("");
-    setAiSuggestion(""); // 🧹 Clear suggestion after sending
+    setAiSuggestion("");
     baseInputRef.current = "";
   };
 
-  // 👈 4. Handle clicking the suggestion
   const acceptSuggestion = () => {
     setInput(aiSuggestion);
     setAiSuggestion("");
@@ -168,22 +166,34 @@ export default function GlassChat() {
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-blue-500/20 rounded-full blur-[120px] pointer-events-none" />
 
       {/* Header */}
-      <div className="flex justify-between items-center px-6 py-4 border-b border-white/5 backdrop-blur-md z-10">
-        <div className="flex flex-col">
-          <h2 className="text-white font-bold text-lg tracking-tight">
-            Quantum Chat
-          </h2>
-          <div className="flex items-center gap-2">
-            <div
-              className={`w-2 h-2 rounded-full ${
-                isConnected ? "bg-green-500 animate-pulse" : "bg-red-500"
-              }`}
-            ></div>
-            <p className="text-xs text-blue-300/60">
-              {isConnected ? "Online" : "Offline"} • {messages.length} msgs
-            </p>
+      <div className="flex justify-between items-center px-4 py-4 border-b border-white/5 backdrop-blur-md z-10">
+        {/* Left Side: Back Button + Title */}
+        <div className="flex items-center gap-3">
+          {/* 👈 Back Button positioned leftmost */}
+          <Link href="/" className="shrink-0">
+            <button className="p-2 rounded-full bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white transition-all border border-white/5 hover:border-white/20 flex items-center justify-center">
+              <ArrowLeft size={18} />
+            </button>
+          </Link>
+
+          <div className="flex flex-col">
+            <h2 className="text-white font-bold text-lg tracking-tight">
+              Quantum Chat
+            </h2>
+            <div className="flex items-center gap-2">
+              <div
+                className={`w-2 h-2 rounded-full ${
+                  isConnected ? "bg-green-500 animate-pulse" : "bg-red-500"
+                }`}
+              ></div>
+              <p className="text-xs text-blue-300/60">
+                {isConnected ? "Online" : "Offline"} • {messages.length} msgs
+              </p>
+            </div>
           </div>
         </div>
+
+        {/* Right Side: Lock */}
         <EncryptionLock isSecured={isConnected} />
       </div>
 
@@ -230,7 +240,6 @@ export default function GlassChat() {
 
       {/* Input Bar */}
       <div className="px-4 pb-6 pt-2 z-20">
-        {/* 👈 5. Render AI Suggestion if available */}
         <AiPredictor suggestion={aiSuggestion} onClick={acceptSuggestion} />
 
         <div className="relative group">

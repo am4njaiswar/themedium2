@@ -84,7 +84,7 @@ export default function Home() {
       <header className="text-center mb-6 sm:mb-8 sm:mt-8">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4 mb-2">
           <div className="flex-1">
-            <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold bg-linear-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent mb-1 sm:mb-2">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold bg-linear-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent mb-1 sm:mb-2 md:mt-0 mt-6">
               The Medium
             </h1>
             <p className="text-gray-300 text-sm sm:text-base">Experience how messaging evolved through history</p>
