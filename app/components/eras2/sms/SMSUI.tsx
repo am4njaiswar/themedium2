@@ -2,6 +2,106 @@
 
 import React, { useState, useEffect, useRef } from 'react'
 
+// 🎵 1. ENHANCED AUDIO COMPONENT
+const AudioMessage = ({ src }: { src: string }) => {
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [speed, setSpeed] = useState(1); // 1x, 1.5x, 2x
+  const audioRef = useRef<HTMLAudioElement>(null);
+
+  const togglePlay = () => {
+    if (audioRef.current) {
+      if (isPlaying) {
+        audioRef.current.pause();
+      } else {
+        audioRef.current.play();
+      }
+      setIsPlaying(!isPlaying);
+    }
+  };
+
+  const changeSpeed = () => {
+    if (audioRef.current) {
+      const newSpeed = speed === 1 ? 1.5 : speed === 1.5 ? 2 : 1;
+      audioRef.current.playbackRate = newSpeed;
+      setSpeed(newSpeed);
+    }
+  };
+
+  // Fake waveform bars
+  const bars = [1, 2, 3, 2, 4, 3, 2, 1, 2, 4, 3, 2, 1, 2, 3, 2, 1];
+
+  return (
+    <div className="flex items-center gap-3 bg-gray-900/60 border border-white/10 rounded-xl p-2 pr-3 min-w-55 transition-all hover:bg-gray-900/80 group">
+      <audio 
+        ref={audioRef} 
+        src={src} 
+        onEnded={() => setIsPlaying(false)} 
+        onPause={() => setIsPlaying(false)}
+        className="hidden" 
+      />
+      
+      {/* Play/Pause Button */}
+      <button 
+        onClick={togglePlay}
+        className="w-8 h-8 shrink-0 flex items-center justify-center rounded-full bg-linear-to-br from-purple-500 to-blue-500 shadow-lg shadow-purple-500/20 hover:scale-105 active:scale-95 transition-all"
+      >
+        {isPlaying ? (
+          <div className="flex gap-1">
+            <div className="w-1 h-3 bg-white rounded-full" />
+            <div className="w-1 h-3 bg-white rounded-full" />
+          </div>
+        ) : (
+          <div className="w-0 h-0 border-t-[5px] border-t-transparent border-l-8 border-l-white border-b-[5px] border-b-transparent ml-0.5" />
+        )}
+      </button>
+
+      {/* Visual Waveform */}
+      <div className="flex items-center gap-0.5 h-6 flex-1 mx-1">
+        {bars.map((height, i) => (
+          <div 
+            key={i} 
+            className={`w-1 rounded-full transition-all duration-300 ${
+              isPlaying ? 'bg-purple-400 animate-pulse' : 'bg-gray-600'
+            }`}
+            style={{ 
+              height: isPlaying ? `${Math.random() * 16 + 4}px` : `${height * 3}px`,
+              animationDelay: `${i * 0.05}s`
+            }}
+          />
+        ))}
+      </div>
+
+      {/* ⚡ CONTROLS SECTION */}
+      <div className="flex items-center gap-2 border-l border-gray-700 pl-2">
+        
+        {/* Speed Toggle */}
+        <button 
+          onClick={changeSpeed}
+          className="text-[10px] font-bold text-gray-400 hover:text-white hover:bg-white/10 px-1.5 py-0.5 rounded transition-all w-8 text-center"
+        >
+          {speed}x
+        </button>
+
+        {/* Download Button */}
+        <a 
+          href={src} 
+          download={`voice_msg_${Date.now()}.webm`}
+          className="text-gray-400 hover:text-blue-400 hover:bg-blue-400/10 p-1 rounded-full transition-all"
+          title="Download Audio"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+        </a>
+      </div>
+    </div>
+  );
+};
+
+// --- MAIN COMPONENT ---
+
 interface SMSUIProps {
   message: string
   onSendMessage: (message: string) => void
@@ -18,6 +118,11 @@ const SMSUI: React.FC<SMSUIProps> = ({ message, onSendMessage, messages }) => {
   const [deliveryStatus, setDeliveryStatus] = useState('')
   const [keypadMode, setKeypadMode] = useState<'alpha' | 'numeric'>('alpha')
   
+  const [showAttachments, setShowAttachments] = useState(false)
+  
+  const [selectedMedia, setSelectedMedia] = useState<string | null>(null)
+  const [mediaType, setMediaType] = useState<'image' | 'video' | 'audio' | null>(null)
+
   const photoRef = useRef<HTMLInputElement>(null)
   const videoRef = useRef<HTMLInputElement>(null)
   const audioRef = useRef<HTMLInputElement>(null)
@@ -39,6 +144,20 @@ const SMSUI: React.FC<SMSUIProps> = ({ message, onSendMessage, messages }) => {
     setPhoneNumber(validatedValue)
   }
 
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>, type: 'image' | 'video' | 'audio') => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setSelectedMedia(reader.result as string); 
+        setMediaType(type);
+        setDeliveryStatus(`📎 ${type.charAt(0).toUpperCase() + type.slice(1)} Attached`);
+        setShowAttachments(false);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleSend = () => {
     if (!phoneNumber.trim()) {
       setDeliveryStatus('⚠️ Phone number required')
@@ -46,10 +165,11 @@ const SMSUI: React.FC<SMSUIProps> = ({ message, onSendMessage, messages }) => {
       return
     }
     
-    if (!input.trim() || isSending || characterCount > maxCharacters) return
+    if ((!input.trim() && !selectedMedia) || isSending) return
     
     setIsSending(true)
     setDeliveryStatus('📤 Sending...')
+    setShowAttachments(false)
 
     setTimeout(() => {
       if (!isPhoneValid(phoneNumber)) {
@@ -57,20 +177,23 @@ const SMSUI: React.FC<SMSUIProps> = ({ message, onSendMessage, messages }) => {
         setIsSending(false)
         return
       }
-
       if (balance < 0.10) {
         setDeliveryStatus('❌ Failed: No Balance')
         setIsSending(false)
         return
       }
 
-      onSendMessage(input)
+      if (selectedMedia) {
+        onSendMessage(selectedMedia); 
+      } else {
+        onSendMessage(input);
+      }
+
       setInput('')
+      setSelectedMedia(null)
+      setMediaType(null)
       setBalance(prev => parseFloat((prev - 0.10).toFixed(2)))
       setDeliveryStatus('✅ Delivered')
-      
-      // Removed the "Received" auto-reply timeout from here
-      
       setIsSending(false)
       setTimeout(() => setDeliveryStatus(''), 3000)
     }, 1200)
@@ -78,6 +201,12 @@ const SMSUI: React.FC<SMSUIProps> = ({ message, onSendMessage, messages }) => {
 
   const handleKeyPress = (key: string) => {
     setInput(prev => prev + key)
+  }
+  
+  const handleAttachmentClick = (type: 'photo' | 'video' | 'audio') => {
+    if (type === 'photo') photoRef.current?.click();
+    if (type === 'video') videoRef.current?.click();
+    if (type === 'audio') audioRef.current?.click();
   }
 
   const getSignalBars = (strength: number) => {
@@ -98,11 +227,15 @@ const SMSUI: React.FC<SMSUIProps> = ({ message, onSendMessage, messages }) => {
   const centeredRow = ['V', 'W', 'X', 'Y', 'Z']
   const numericKeys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '*', '0', '#']
 
+  const isImageMessage = (text: string) => text.startsWith('data:image');
+  const isVideoMessage = (text: string) => text.startsWith('data:video');
+  const isAudioMessage = (text: string) => text.startsWith('data:audio');
+
   return (
     <div className="p-6">
-      <input type="file" accept="image/*" ref={photoRef} className="hidden" onChange={() => setDeliveryStatus('🖼️ Image Selected')} />
-      <input type="file" accept="video/*" ref={videoRef} className="hidden" onChange={() => setDeliveryStatus('📹 Video Selected')} />
-      <input type="file" accept="audio/*" ref={audioRef} className="hidden" onChange={() => setDeliveryStatus('🎙️ Audio Selected')} />
+      <input type="file" accept="image/*" ref={photoRef} className="hidden" onChange={(e) => handleFileSelect(e, 'image')} />
+      <input type="file" accept="video/*" ref={videoRef} className="hidden" onChange={(e) => handleFileSelect(e, 'video')} />
+      <input type="file" accept="audio/*" ref={audioRef} className="hidden" onChange={(e) => handleFileSelect(e, 'audio')} />
 
       <div className="max-w-md mx-auto">
         <div className="bg-linear-to-b from-gray-900 to-black rounded-3xl p-6 border-2 border-purple-900 shadow-2xl text-white font-sans">
@@ -134,7 +267,19 @@ const SMSUI: React.FC<SMSUIProps> = ({ message, onSendMessage, messages }) => {
                   }`}
                 >
                   <div className="text-[10px] opacity-60 mb-1">{msg.sender} • {msg.timestamp}</div>
-                  <div className="text-sm leading-relaxed">{msg.text}</div>
+                  
+                  {isImageMessage(msg.text) ? (
+                    <img src={msg.text} alt="MMS" className="rounded-lg max-h-32 border border-white/20" />
+                  ) : isVideoMessage(msg.text) ? (
+                    <video src={msg.text} controls className="rounded-lg max-h-32 w-full border border-white/20" />
+                  ) : isAudioMessage(msg.text) ? (
+                     <AudioMessage src={msg.text} />
+                  ) : (
+                    <div className="text-sm leading-relaxed truncate">
+                      {msg.text.startsWith('data:') ? '[Unsupported Media]' : msg.text}
+                    </div>
+                  )}
+
                 </div>
               ))}
             </div>
@@ -161,37 +306,55 @@ const SMSUI: React.FC<SMSUIProps> = ({ message, onSendMessage, messages }) => {
             </div>
 
             <div className="flex items-center gap-2 bg-gray-900 border border-gray-800 rounded-full px-2 py-1 relative">
-              <div className="group relative">
-                <button className="w-10 h-10 flex items-center justify-center bg-gray-800 hover:bg-gray-700 rounded-full transition-colors">
-                  <span className="text-xl">➕</span>
+              
+              <div className="relative">
+                <button 
+                  onClick={() => setShowAttachments(!showAttachments)} 
+                  className={`w-10 h-10 flex items-center justify-center rounded-full transition-colors ${
+                    showAttachments ? 'bg-purple-600' : 'bg-gray-800 hover:bg-gray-700'
+                  }`}
+                >
+                  <span className="text-xl">{showAttachments ? '✖' : '➕'}</span>
                 </button>
                 
-                <div className="absolute bottom-full left-0 mb-4 hidden group-hover:flex flex-col bg-gray-950 border border-purple-500/50 rounded-2xl p-2 shadow-2xl z-20 w-48 gap-1">
-                  <button onClick={() => photoRef.current?.click()} className="text-sm text-left px-3 py-2.5 hover:bg-purple-900/40 rounded-xl flex items-center gap-3 transition-colors">
-                    <span className="text-xl">🖼️</span> Photo Gallery
-                  </button>
-                  <button onClick={() => videoRef.current?.click()} className="text-sm text-left px-3 py-2.5 hover:bg-purple-900/40 rounded-xl flex items-center gap-3 transition-colors">
-                    <span className="text-xl">📹</span> Video Section
-                  </button>
-                  <button onClick={() => audioRef.current?.click()} className="text-sm text-left px-3 py-2.5 hover:bg-purple-900/40 rounded-xl flex items-center gap-3 transition-colors">
-                    <span className="text-xl">🎙️</span> Audio Library
-                  </button>
-                </div>
+                {showAttachments && (
+                  <div className="absolute bottom-full left-0 mb-4 flex flex-col bg-gray-950 border border-purple-500/50 rounded-2xl p-2 shadow-2xl z-20 w-48 gap-1">
+                    <button onClick={() => handleAttachmentClick('photo')} className="text-sm text-left px-3 py-2.5 hover:bg-purple-900/40 rounded-xl flex items-center gap-3 transition-colors">
+                      <span className="text-xl">🖼️</span> Photo Gallery
+                    </button>
+                    <button onClick={() => handleAttachmentClick('video')} className="text-sm text-left px-3 py-2.5 hover:bg-purple-900/40 rounded-xl flex items-center gap-3 transition-colors">
+                      <span className="text-xl">📹</span> Video Section
+                    </button>
+                    <button onClick={() => handleAttachmentClick('audio')} className="text-sm text-left px-3 py-2.5 hover:bg-purple-900/40 rounded-xl flex items-center gap-3 transition-colors">
+                      <span className="text-xl">🎙️</span> Audio Library
+                    </button>
+                  </div>
+                )}
               </div>
 
-              <textarea
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                placeholder="Text Message"
-                className="flex-1 bg-transparent py-2 px-1 focus:outline-none resize-none text-sm max-h-20 text-white"
-                rows={1}
-                maxLength={maxCharacters}
-              />
+              {selectedMedia ? (
+                <div className="flex-1 h-10 flex items-center justify-between bg-gray-800 rounded-lg px-3">
+                  <span className="text-xs text-gray-300 flex items-center gap-2">
+                    {mediaType === 'audio' ? '🎙️' : mediaType === 'video' ? '📹' : '🖼️'} 
+                    {mediaType?.toUpperCase()} Ready
+                  </span>
+                  <button onClick={() => { setSelectedMedia(null); setMediaType(null); }} className="text-gray-500 hover:text-white">✕</button>
+                </div>
+              ) : (
+                <textarea
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  placeholder="Text Message"
+                  className="flex-1 bg-transparent py-2 px-1 focus:outline-none resize-none text-sm max-h-20 text-white"
+                  rows={1}
+                  maxLength={maxCharacters}
+                />
+              )}
 
               <button
                 onClick={handleSend}
                 className={`w-9 h-9 flex items-center justify-center rounded-full transition-all ${
-                  !input.trim() || !phoneNumber.trim() || isSending 
+                  (!input.trim() && !selectedMedia) || !phoneNumber.trim() || isSending 
                   ? 'bg-gray-800 text-gray-500' 
                   : 'bg-purple-600 text-white hover:bg-purple-500 shadow-lg'
                 }`}
@@ -214,44 +377,21 @@ const SMSUI: React.FC<SMSUIProps> = ({ message, onSendMessage, messages }) => {
                 {alphaRows.map((row, rowIndex) => (
                   <div key={rowIndex} className="flex gap-1">
                     {row.map((key) => (
-                      <button
-                        key={key}
-                        onClick={() => handleKeyPress(key)}
-                        className="flex-1 h-11 bg-gray-800/50 border border-gray-700/30 hover:bg-gray-700 rounded-lg font-bold text-sm transition-all active:scale-90"
-                      >
-                        {key}
-                      </button>
+                      <button key={key} onClick={() => handleKeyPress(key)} className="flex-1 h-11 bg-gray-800/50 border border-gray-700/30 hover:bg-gray-700 rounded-lg font-bold text-sm transition-all active:scale-90">{key}</button>
                     ))}
                   </div>
                 ))}
                 <div className="flex gap-1 justify-center px-6">
                   {centeredRow.map((key) => (
-                    <button
-                      key={key}
-                      onClick={() => handleKeyPress(key)}
-                      className="flex-1 h-11 bg-gray-800/50 border border-gray-700/30 hover:bg-gray-700 rounded-lg font-bold text-sm transition-all active:scale-90"
-                    >
-                      {key}
-                    </button>
+                    <button key={key} onClick={() => handleKeyPress(key)} className="flex-1 h-11 bg-gray-800/50 border border-gray-700/30 hover:bg-gray-700 rounded-lg font-bold text-sm transition-all active:scale-90">{key}</button>
                   ))}
                 </div>
-                <button
-                  onClick={() => handleKeyPress(' ')}
-                  className="w-full bg-gray-800/50 border border-gray-700/30 hover:bg-gray-700 rounded-lg py-2.5 text-xs font-bold mt-1 uppercase tracking-widest"
-                >
-                  Space
-                </button>
+                <button onClick={() => handleKeyPress(' ')} className="w-full bg-gray-800/50 border border-gray-700/30 hover:bg-gray-700 rounded-lg py-2.5 text-xs font-bold mt-1 uppercase tracking-widest">Space</button>
               </div>
             ) : (
               <div className="grid grid-cols-3 gap-2">
                 {numericKeys.map((key) => (
-                  <button
-                    key={key}
-                    onClick={() => handleKeyPress(key)}
-                    className="bg-gray-800/50 border border-gray-700/30 hover:bg-gray-700 rounded-lg py-4 font-bold text-base transition-all active:scale-95"
-                  >
-                    {key}
-                  </button>
+                  <button key={key} onClick={() => handleKeyPress(key)} className="bg-gray-800/50 border border-gray-700/30 hover:bg-gray-700 rounded-lg py-4 font-bold text-base transition-all active:scale-95">{key}</button>
                 ))}
               </div>
             )}
